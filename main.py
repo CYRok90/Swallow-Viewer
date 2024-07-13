@@ -23,7 +23,7 @@ def main():
         
         market_col, stock_col = st.columns([1,1])
         with market_col:
-            market_select = st.radio('',[':us:미국', ':kr:한국'])
+            market_select = st.radio('주식 시장', [':us:미국', ':kr:한국'])
         market_select = market_select[:-2]
         stock_etf_set = getStockEtfSet(sh, market_select)
         with stock_col:
@@ -113,6 +113,27 @@ def main():
         st.divider()
 
         displayTradeHeader(TRADE_VERSION)
+
+        start_col, end_col = st.columns([1,1])
+        with start_col:
+            start_date = st.text_input(label="시작일(예시: 1980-01-01)", value="1980-01-01")
+        with end_col:
+            end_date = st.text_input(label="종료일(예시: 2024-07-21}", value="2024-07-21")
+        interval_col, day_col = st.columns([1,1])
+        with interval_col:
+            investment_interval = st.radio('투자 주기', ['월간', '격주', '매주'])
+        with day_col:
+            investment_day = st.radio('투자 시점', ['첫날', '중간날', '마지막날'], help="월간 첫날 - 매월 첫 영업일(1일) / 격주 첫날 - 격주 첫 영업일(월요일) / ...")
+        init_col, per_col = st.columns([1,1])
+        with init_col:
+            init_investment_amount = st.number_input(label="초기 투자금($)", min_value=0, value=1000, step=None, on_change=None)
+        with per_col:
+            per_investment_amount = st.number_input(label="주기별 투자금($)", min_value=0, value=100, step=None, on_change=None)
+        buy_col, dividend_col = st.columns([1,1])
+        with buy_col:
+            buy_price = st.radio('매수 가격', ['종가', '고가'])
+        with dividend_col:
+            dividend_investment = st.radio('배당금 전부 재투자', ['예', '아니오'])
 
 
 
