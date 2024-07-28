@@ -19,6 +19,7 @@ jsonschema-specifications==2023.12.1
 markdown-it-py==3.0.0
 MarkupSafe==2.1.5
 mdurl==0.1.2
+millify==0.1.1
 numpy==1.24.4
 oauthlib==3.2.2
 packaging==24.1
@@ -42,6 +43,7 @@ rsa==4.9
 six==1.16.0
 smmap==5.0.1
 streamlit==1.36.0
+streamlit-lightweight-charts==0.7.20
 tenacity==8.5.0
 toml==0.10.2
 toolz==0.12.1

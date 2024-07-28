@@ -5,9 +5,9 @@ def auth(sh):
     ws = sh.worksheet("auth")
     auth_df = pd.DataFrame(ws.get_all_records())
     
-    inputUserApiKey = st.text_input("인증키")
-    ok = auth_df['auth_key'].isin([inputUserApiKey]).any()
+    api_key = st.text_input("인증키")
+    ok = auth_df['auth_key'].isin([api_key]).any()
     if ok:
-        return (True, auth_df[auth_df['auth_key'] == inputUserApiKey]['name'].values[0])
+        return (True, auth_df[auth_df['auth_key'] == api_key]['name'].values[0], api_key)
     else:
-        return (False, "")
+        return (False, "", "")
