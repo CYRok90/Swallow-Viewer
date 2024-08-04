@@ -1,4 +1,5 @@
 import streamlit as st
+import logging
 import requests
 import pandas as pd
 
@@ -7,7 +8,7 @@ SIMULATE_API_URL = st.secrets["simulate_api_url"]
 def display_simulate_header(VERSION):
     st.header("ETF 투자 시뮬레이션 {version}".format(version=VERSION), divider="rainbow", anchor="trade")
 
-def display_simulate(api_key, etf_name, etf_raw_df, dividend_interval):
+def display_simulate(etf_name, etf_raw_df, dividend_interval):
     start_col, end_col = st.columns([1,1])
     with start_col:
         start_date = st.text_input(label="시작일(예시: 1980-01-01)", value="1980-01-01")
@@ -15,7 +16,7 @@ def display_simulate(api_key, etf_name, etf_raw_df, dividend_interval):
         end_date = st.text_input(label="종료일(예시: 2024-07-21}", value="2024-07-21")
     interval_col, day_col = st.columns([1,1])
     with interval_col:
-        investment_interval = st.radio("투자 주기", ["월간", "격주", "매주"])
+        investment_interval = st.radio("투자 주기", ["월간", "격주", "매주"], key="investment_interval")
         if investment_interval == "월간":
             investment_interval = "monthly"
         elif investment_interval == "격주":
@@ -57,7 +58,7 @@ def display_simulate(api_key, etf_name, etf_raw_df, dividend_interval):
         dividends_fee *= 0.01
 
     params = {
-        "api_key": api_key,
+        "api_key": st.session_state.api_key,
         "start_date": start_date,
         "end_date": end_date,
         "init_investment_amount": init_investment_amount,
@@ -71,47 +72,49 @@ def display_simulate(api_key, etf_name, etf_raw_df, dividend_interval):
         "name": etf_name
     }
     if st.button("시뮬레이션!", type="primary"):
-        response = requests.get(SIMULATE_API_URL, params=params)
-        if response.status_code == 200:
-            result = response.json()["result"]
-            df1 = pd.DataFrame(result["매매 일지"])
-            df2 = pd.DataFrame(result["배당 일지"])
-            df3 = pd.DataFrame(result["예수금"])
-            df4 = pd.DataFrame(result["주식 잔고"])
-            
-            st.write("매매 일지")
-            st.dataframe(df1)
-            st.write("배당 일지")
-            st.dataframe(df2)
-            st.write("예수금")
-            st.dataframe(df3)
-            st.write("주식 잔고")
-            st.dataframe(df4)
+        st.session_state["logger"].info("USER: %s called SIMULATE API(etf:%s).", st.session_state.user, st.session_state.etf_name)
+        with st.spinner("시뮬레이션 중입니다..."):
+            response = requests.get(SIMULATE_API_URL, params=params)
+            if response.status_code == 200:
+                result = response.json()["result"]
+                df1 = pd.DataFrame(result["매매 일지"])
+                df2 = pd.DataFrame(result["배당 일지"])
+                df3 = pd.DataFrame(result["예수금"])
+                df4 = pd.DataFrame(result["주식 잔고"])
+                
+                st.write("매매 일지")
+                st.dataframe(df1)
+                st.write("배당 일지")
+                st.dataframe(df2)
+                st.write("예수금")
+                st.dataframe(df3)
+                st.write("주식 잔고")
+                st.dataframe(df4)
 
-            recent_dividend_balance_row = df2.tail(1).iloc[0]
-            recent_deposit_balance_row = df3.tail(1).iloc[0]
-            recent_stock_balance_row = df4.tail(1).iloc[0]
-            recent_stock_row = etf_raw_df[etf_raw_df["date"] <= end_date].head(1).iloc[0]
+                recent_dividend_balance_row = df2.tail(1).iloc[0]
+                recent_deposit_balance_row = df3.tail(1).iloc[0]
+                recent_stock_balance_row = df4.tail(1).iloc[0]
+                recent_stock_row = etf_raw_df[etf_raw_df["date"] <= end_date].head(1).iloc[0]
 
-            # TODO: 결과 차트
-            # TODO: 주식 잔고 - X축:날짜 / Y축: 매입금액, 평가금액, 평가손익= 평가금액 - 매입금액, 수익률= 평가손익 / 매입금액
-            # TODO: 주식 잔고 - X축:날짜 / Y축: 누적투자금, 평가금액, 평가손익= 평가금액 - 누적투자금, 수익률= 평가손익 / 누적투자금
-            # TODO: 배당 일지 - X축:날짜 / Y축: 보유수량, 총배당금(세후), 배당률=총배당금(세후) / 누적투자금, 배당률=총배당금(세후) / 매입금액
-            # TODO: 결과 테이블
-            st.text("현재 주식 평균단가 {} - {}주, 최근 배당 기준 {}마다 세후 배당금 {}". \
-                    format(recent_stock_balance_row["평균 단가"], recent_stock_balance_row["보유 수량"], dividend_interval, recent_dividend_balance_row["총 배당금(세후)"]))
-            st.text("누적 투자금: {}, 누적 배당금: {}, 누적 매입금액: {}, 남은 예수금: {}". \
-                    format(recent_deposit_balance_row["누적 투자금"], recent_deposit_balance_row["누적 배당금"], recent_stock_balance_row["매입 금액"], recent_deposit_balance_row["예수금"]))
-            st.text("배당률 = 총 배당금(세후) / 누적투자금 = {} / {} = {}". \
-                    format(recent_dividend_balance_row["총 배당금(세후)"], recent_deposit_balance_row["누적 투자금"], recent_dividend_balance_row["총 배당금(세후)"] / recent_deposit_balance_row["누적 투자금"]))
-            st.text("배당률 = 총 배당금(세후) / 매입금액 = {} / {} = {}". \
-                    format(recent_dividend_balance_row["총 배당금(세후)"], recent_stock_balance_row["매입 금액"], recent_dividend_balance_row["총 배당금(세후)"] / recent_stock_balance_row["매입 금액"]))
-            st.text("날짜 기준: {}".format(recent_stock_row["date"]))
-            st.text("평가 손익 = 평가금액 - 누적 투자금 = {} - {} = {}". \
-                    format(recent_stock_row["close"] * recent_stock_balance_row["보유 수량"], recent_deposit_balance_row["누적 투자금"], recent_stock_row["close"] * recent_stock_balance_row["보유 수량"] - recent_deposit_balance_row["누적 투자금"]))
-            st.text("평가 손익 = 평가금액 - 누적 매입금액 = {} - {} = {}". \
-                    format(recent_stock_row["close"] * recent_stock_balance_row["보유 수량"], recent_stock_balance_row["매입 금액"], recent_stock_row["close"] * recent_stock_balance_row["보유 수량"] - recent_stock_balance_row["매입 금액"]))
-            
-            # TODO: 수익률= 평가손익 / 누적투자금, 수익률= 평가손익 / 매입금액, 
-        else:
-            st.error("Error: " + response.json().get("error", "Unknown error"))
+                # TODO: 결과 차트
+                # TODO: 주식 잔고 - X축:날짜 / Y축: 매입금액, 평가금액, 평가손익= 평가금액 - 매입금액, 수익률= 평가손익 / 매입금액
+                # TODO: 주식 잔고 - X축:날짜 / Y축: 누적투자금, 평가금액, 평가손익= 평가금액 - 누적투자금, 수익률= 평가손익 / 누적투자금
+                # TODO: 배당 일지 - X축:날짜 / Y축: 보유수량, 총배당금(세후), 배당률=총배당금(세후) / 누적투자금, 배당률=총배당금(세후) / 매입금액
+                # TODO: 결과 테이블
+                st.text("현재 주식 평균단가 {} - {}주, 최근 배당 기준 {}마다 세후 배당금 {}". \
+                        format(recent_stock_balance_row["평균 단가"], recent_stock_balance_row["보유 수량"], dividend_interval, recent_dividend_balance_row["총 배당금(세후)"]))
+                st.text("누적 투자금: {}, 누적 배당금: {}, 누적 매입금액: {}, 남은 예수금: {}". \
+                        format(recent_deposit_balance_row["누적 투자금"], recent_deposit_balance_row["누적 배당금"], recent_stock_balance_row["매입 금액"], recent_deposit_balance_row["예수금"]))
+                st.text("배당률 = 총 배당금(세후) / 누적투자금 = {} / {} = {}". \
+                        format(recent_dividend_balance_row["총 배당금(세후)"], recent_deposit_balance_row["누적 투자금"], recent_dividend_balance_row["총 배당금(세후)"] / recent_deposit_balance_row["누적 투자금"]))
+                st.text("배당률 = 총 배당금(세후) / 매입금액 = {} / {} = {}". \
+                        format(recent_dividend_balance_row["총 배당금(세후)"], recent_stock_balance_row["매입 금액"], recent_dividend_balance_row["총 배당금(세후)"] / recent_stock_balance_row["매입 금액"]))
+                st.text("날짜 기준: {}".format(recent_stock_row["date"]))
+                st.text("평가 손익 = 평가금액 - 누적 투자금 = {} - {} = {}". \
+                        format(recent_stock_row["close"] * recent_stock_balance_row["보유 수량"], recent_deposit_balance_row["누적 투자금"], recent_stock_row["close"] * recent_stock_balance_row["보유 수량"] - recent_deposit_balance_row["누적 투자금"]))
+                st.text("평가 손익 = 평가금액 - 누적 매입금액 = {} - {} = {}". \
+                        format(recent_stock_row["close"] * recent_stock_balance_row["보유 수량"], recent_stock_balance_row["매입 금액"], recent_stock_row["close"] * recent_stock_balance_row["보유 수량"] - recent_stock_balance_row["매입 금액"]))
+                
+                # TODO: 수익률= 평가손익 / 누적투자금, 수익률= 평가손익 / 매입금액, 
+            else:
+                st.error("Error: " + response.json().get("error", "Unknown error"))
