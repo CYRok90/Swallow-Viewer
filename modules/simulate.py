@@ -7,7 +7,7 @@ SIMULATE_API_URL = st.secrets["simulate_api_url"]
 def display_simulate_header(VERSION):
     st.header("ETF 투자 시뮬레이션 {version}".format(version=VERSION), divider="rainbow", anchor="trade")
 
-def display_simulate(api_key, etf_name, etf_raw_df, dividend_interval):
+def display_simulate(etf_name, etf_raw_df, dividend_interval):
     start_col, end_col = st.columns([1,1])
     with start_col:
         start_date = st.text_input(label="시작일(예시: 1980-01-01)", value="1980-01-01")
@@ -15,7 +15,7 @@ def display_simulate(api_key, etf_name, etf_raw_df, dividend_interval):
         end_date = st.text_input(label="종료일(예시: 2024-07-21}", value="2024-07-21")
     interval_col, day_col = st.columns([1,1])
     with interval_col:
-        investment_interval = st.radio("투자 주기", ["월간", "격주", "매주"])
+        investment_interval = st.radio("투자 주기", ["월간", "격주", "매주"], key="investment_interval")
         if investment_interval == "월간":
             investment_interval = "monthly"
         elif investment_interval == "격주":
@@ -57,7 +57,7 @@ def display_simulate(api_key, etf_name, etf_raw_df, dividend_interval):
         dividends_fee *= 0.01
 
     params = {
-        "api_key": api_key,
+        "api_key": st.session_state.api_key,
         "start_date": start_date,
         "end_date": end_date,
         "init_investment_amount": init_investment_amount,
