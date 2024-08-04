@@ -1,6 +1,8 @@
 import streamlit as st
 import logging
+import logging
 
+from modules.spreadsheets import init_spreadsheet, get_etf_with_market_select, get_etf_info, get_stock_raw_data, get_dividend_data
 from modules.spreadsheets import init_spreadsheet, get_etf_with_market_select, get_etf_info, get_stock_raw_data, get_dividend_data
 from modules.auth import auth
 from modules.display import display_report_header, display_etf_information, display_stock_recent_price, display_stock_recent_dividend, display_chart_table
@@ -13,6 +15,7 @@ def main():
     st.set_page_config(layout="wide")
     
     sh = init_spreadsheet()
+    ok = auth(sh) # api_key, user
     ok = auth(sh) # api_key, user
     if not ok:
         st.text("존재하지 않는 인증키입니다.")
