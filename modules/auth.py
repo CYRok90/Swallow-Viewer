@@ -7,7 +7,7 @@ def auth(sh):
 
     if "api_key" not in st.session_state:
         st.session_state.api_key = ""
-    st.session_state.api_key = st.text_input("인증키")
+    st.session_state.api_key = st.text_input("인증키", type="password")
     ok = auth_df["auth_key"].isin([st.session_state.api_key]).any()
     if "user" not in st.session_state:
         st.session_state.user = ""    

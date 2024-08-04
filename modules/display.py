@@ -12,13 +12,7 @@ CURRENYCY_SYMBOL_US = "$"
 CURRENYCY_SYMBOL_KR = "₩"
 
 def display_report_header(VERSION):
-    col1, col2 = st.columns([1,1], vertical_alignment="bottom")
-    with col1:
-        st.header("ETF 투자 분석 {version}".format(version=VERSION), divider="rainbow", anchor="report")
-    with col2:
-        locale.setlocale(locale.LC_TIME, "ko_KR.UTF-8")
-        today = datetime.now()
-        st.markdown("**{date}**".format(date=today.strftime("%Y-%m-%d %A")))
+    st.header("ETF 투자 분석 {version}".format(version=VERSION), divider="rainbow", anchor="report")
 
 def display_etf_information(etf_info):
     etf_title, info_col = st.columns([2,1])
@@ -124,57 +118,57 @@ def display_stock_recent_dividend(dividend_df, market_select):
                     dividend = "{}{:,.4f}".format(CURRENYCY_SYMBOL_US, dividend)
                     dividend_diff = "{:,.4f}".format(dividend_diff)
                 st.metric(label="배당금", value=dividend, delta= dividend_diff)
-            if len(dividend_df) > 1:
-                record_col, pay_col, dividend_col = st.columns(3)
-                with record_col:
-                    st.metric(label="배당기준일", value=dividend_df.iloc[1]["recorddate"], label_visibility="hidden")
-                with pay_col:
-                    st.metric(label="배당지급일", value=dividend_df.iloc[1]["paydate"], label_visibility="hidden")
-                with dividend_col:
-                    dividend = dividend_df.iloc[1]["dividend"]
-                    dividend_diff = 0.0
-                    if len(dividend_df) > 2:
-                        dividend_diff = dividend_df.iloc[1]["dividend"] - dividend_df.iloc[2]["dividend"]
-                    if market_select == "한국":
-                        dividend = "{}{:,.0f}".format(CURRENYCY_SYMBOL_KR, dividend)
-                        dividend_diff = "{:,.0f}".format(dividend_diff)
-                    else:
-                        dividend = "{}{:,.4f}".format(CURRENYCY_SYMBOL_US, dividend)
-                        dividend_diff = "{:,.4f}".format(dividend_diff)
-                    st.metric(label="배당금", label_visibility="hidden", value=dividend, delta= dividend_diff)
-                if len(dividend_df) > 2:
-                    record_col, pay_col, dividend_col = st.columns(3)
-                    with record_col:
-                        st.metric(label="배당기준일", value=dividend_df.iloc[2]["recorddate"], label_visibility="hidden")
-                    with pay_col:
-                        st.metric(label="배당지급일", value=dividend_df.iloc[2]["paydate"], label_visibility="hidden")
-                    with dividend_col:
-                        dividend = dividend_df.iloc[2]["dividend"]
-                        dividend_diff = 0.0
-                        if len(dividend_df) > 3:
-                            dividend_diff = dividend_df.iloc[2]["dividend"] - dividend_df.iloc[3]["dividend"]
-                        if market_select == "한국":
-                            dividend = "{}{:,.0f}".format(CURRENYCY_SYMBOL_KR, dividend)
-                            dividend_diff = "{:,.0f}".format(dividend_diff)
-                        else:
-                            dividend = "{}{:,.4f}".format(CURRENYCY_SYMBOL_US, dividend)
-                            dividend_diff = "{:,.4f}".format(dividend_diff)
-                        st.metric(label="배당금", label_visibility="hidden", value=dividend, delta= dividend_diff)
+            # if len(dividend_df) > 1:
+            #     with st.expander("이전 배당내역 확인하기"):
+            #         record_col, pay_col, dividend_col = st.columns(3)
+            #         with record_col:
+            #             st.metric(label="배당기준일", value=dividend_df.iloc[1]["recorddate"], label_visibility="hidden")
+            #         with pay_col:
+            #             st.metric(label="배당지급일", value=dividend_df.iloc[1]["paydate"], label_visibility="hidden")
+            #         with dividend_col:
+            #             dividend = dividend_df.iloc[1]["dividend"]
+            #             dividend_diff = 0.0
+            #             if len(dividend_df) > 2:
+            #                 dividend_diff = dividend_df.iloc[1]["dividend"] - dividend_df.iloc[2]["dividend"]
+            #             if market_select == "한국":
+            #                 dividend = "{}{:,.0f}".format(CURRENYCY_SYMBOL_KR, dividend)
+            #                 dividend_diff = "{:,.0f}".format(dividend_diff)
+            #             else:
+            #                 dividend = "{}{:,.4f}".format(CURRENYCY_SYMBOL_US, dividend)
+            #                 dividend_diff = "{:,.4f}".format(dividend_diff)
+            #             st.metric(label="배당금", label_visibility="hidden", value=dividend, delta= dividend_diff)
+            #         if len(dividend_df) > 2:
+            #             record_col, pay_col, dividend_col = st.columns(3)
+            #             with record_col:
+            #                 st.metric(label="배당기준일", value=dividend_df.iloc[2]["recorddate"], label_visibility="hidden")
+            #             with pay_col:
+            #                 st.metric(label="배당지급일", value=dividend_df.iloc[2]["paydate"], label_visibility="hidden")
+            #             with dividend_col:
+            #                 dividend = dividend_df.iloc[2]["dividend"]
+            #                 dividend_diff = 0.0
+            #                 if len(dividend_df) > 3:
+            #                     dividend_diff = dividend_df.iloc[2]["dividend"] - dividend_df.iloc[3]["dividend"]
+            #                 if market_select == "한국":
+            #                     dividend = "{}{:,.0f}".format(CURRENYCY_SYMBOL_KR, dividend)
+            #                     dividend_diff = "{:,.0f}".format(dividend_diff)
+            #                 else:
+            #                     dividend = "{}{:,.4f}".format(CURRENYCY_SYMBOL_US, dividend)
+            #                     dividend_diff = "{:,.4f}".format(dividend_diff)
+            #                 st.metric(label="배당금", label_visibility="hidden", value=dividend, delta= dividend_diff)
         st.divider()
 
-# TODO: 종가 그래프에 고점, 저점 포인트 표시
-# TODO: 종가 그래프에서 시작점 -> 끝점까지에 대한 점선 추세선을 그리자.
-# TODO: 거래량 그래프에서 평균값 점선 그래프 그리자.
 
-# TODO: 배당금 그래프에서 시작점 -> 끝쩜까지에 대한 점선 추세선을 그리자.
-# TODO: 배당금 그래프에서 배당락일에 포인트를 표시
-# TODO: 배당률 그래프에서 평균값 점선 그래프 그리자.
 
 def display_chart_table(stock_raw_df, dividend_df):
     close_volume_col, dividend_col = st.columns(2)
     with close_volume_col:
         with st.container(border=True):
             display_stock_close_volume_chart(stock_raw_df)
+            st.text("TODO: 종가그래프(꺽은선)에는 고점과 저점에 포인트 표시를 하고, 시작점에서 끝점방향으로 점선 추세선을 그린다.")
+            st.text("TODO: 거래량그래프(막대)에는 평균값 점선 직선 그래프를 그린다.")
+            # TODO: 종가 그래프에 고점, 저점 포인트 표시
+            # TODO: 종가 그래프에서 시작점 -> 끝점까지에 대한 점선 추세선을 그리자.
+            # TODO: 거래량 그래프에서 평균값 점선 그래프 그리자.
             st.divider()
             st.markdown("##### 종가 비교")
             st.dataframe(data=get_close_table(stock_raw_df), use_container_width=True)
@@ -183,6 +177,11 @@ def display_chart_table(stock_raw_df, dividend_df):
     with dividend_col:
         with st.container(border=True):
             display_stock_dividend_chart(stock_raw_df, dividend_df)
+            st.text("TODO: 배당률그래프(꺽은선)에는 배당락일에 포인트 표시를 하고, 시작점에서 끝점방향으로 점선 추세선을 그린다.")
+            st.text("TODO: 배당금그래프(막대)에는 평균값 점선 직선 그래프를 그린다.")
+            # TODO: 배당률 그래프에서 시작점 -> 끝쩜까지에 대한 점선 추세선을 그리자.
+            # TODO: 배당률 그래프에서 배당락일에 포인트를 표시
+            # TODO: 배당금 그래프에서 평균값 점선 그래프 그리자.
             st.divider()
             st.markdown("##### 배당률 비교")
             st.dataframe(data=get_dividend_rate_table(stock_raw_df), use_container_width=True)
