@@ -2,8 +2,7 @@ import streamlit as st
 import pandas as pd
 
 def auth(sh):
-    ws = sh.worksheet("auth")
-    auth_df = pd.DataFrame(ws.get_all_records())
+    auth_df = pd.DataFrame(sh.worksheet("auth").get_all_records())
 
     if "api_key" not in st.session_state:
         st.session_state.api_key = ""

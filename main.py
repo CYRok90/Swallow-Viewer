@@ -3,62 +3,79 @@ import logging
 from datetime import datetime
 import locale
 import pandas as pd
+from bokeh.plotting import figure
+from bokeh.models import HoverTool, ColumnDataSource
+from bokeh.palettes import Category20
 
+from modules.portfolio import display_portfolio
 from modules.spreadsheets import init_spreadsheet, get_etf_with_market_select, get_etf_info, get_stock_raw_data, get_dividend_data
 from modules.auth import auth
 from modules.display import display_report_header, display_etf_information, display_stock_recent_price, display_stock_recent_dividend, display_chart_table
 from modules.simulate import display_simulate_header, display_simulate
 
 VERSION = "v1.0.0"
-BOARD_VERSION = "v1.0.0"
 REPORT_VERSION = "v1.0.0"
 SIMULATE_VERSION = "v1.0.0"
 
 def rsi_color(val):
     """RSI 값을 기준으로 색상을 지정하는 함수"""
-    if val < 25:
-        color = '#800020'  # 버건디
-    elif val < 35:
+    if val >= 75:
+        color = '#8B0000'  # 찐한 빨간색 (빨간색 강조)
+    elif val >= 65:
         color = '#FF0000'  # 빨간색
-    elif val < 45:
-        color = '#FFC0CB'  # 분홍색
-    elif val < 55:
+    elif val >= 55:
+        color = '#FFA07A'  # 연한 빨간색 (빨간색이지만 덜 강조)
+    elif val >= 45:
         color = '#808080'  # 중립 (회색)
-    elif val < 65:
-        color = '#90EE90'  # 연두색
-    elif val < 75:
-        color = '#008000'  # 초록색
+    elif val >= 35:
+        color = '#87CEFA'  # 연한 파란색 (파란색이지만 덜 강조)
+    elif val >= 25:
+        color = '#0000FF'  # 파란색
     else:
-        color = '#004000'  # 찐초록
+        color = '#000080'  # 찐한 파란색 (파란색 강조)
     return f'color: {color}'
 
-def sma_color(close, sma):
-    """SMA 값을 종가와 비교하여 글자 색을 지정하는 함수"""
-    ratio = (close / sma - 1) * 100  # 백분율 계산
-    if ratio < -10:
-        return 'color: #800020'  # 버건디
-    elif ratio < -5:
-        return 'color: #FF0000'  # 빨간색
-    elif ratio < 0:
-        return 'color: #FFC0CB'  # 분홍색
-    elif ratio == 0:
-        return 'color: #000000'
-    elif ratio < 5:
-        return 'color: #90EE90'  # 연두색
-    elif ratio < 10:
-        return 'color: #008000'  # 초록색
-    else:
-        return 'color: #004000'  # 찐초록
+# def sma_color(close, sma):
+#     """SMA 값을 종가와 비교하여 글자 색을 지정하는 함수"""
+#     ratio = (close / sma - 1) * 100  # 백분율 계산
+#     if ratio < -10:
+#         return 'color: #800020'  # 버건디
+#     elif ratio < -5:
+#         return 'color: #FF0000'  # 빨간색
+#     elif ratio < 0:
+#         return 'color: #FFC0CB'  # 분홍색
+#     elif ratio == 0:
+#         return 'color: #000000'
+#     elif ratio < 5:
+#         return 'color: #90EE90'  # 연두색
+#     elif ratio < 10:
+#         return 'color: #008000'  # 초록색
+#     else:
+#         return 'color: #004000'  # 찐초록
 
-def apply_sma_colors(row):
-    """SMA 컬럼에 색상을 적용하는 함수"""
-    return [sma_color(row['종가'], row[col]) for col in ['종가', 'SMA(5)', 'SMA(10)', 'SMA(20)', 'SMA(60)', 'SMA(120)', 'SMA(200)']]
+# def apply_sma_colors(row):
+#     """SMA 컬럼에 색상을 적용하는 함수"""
+#     return [sma_color(row['종가'], row[col]) for col in ['종가', 'SMA(5)', 'SMA(10)', 'SMA(20)', 'SMA(60)', 'SMA(120)', 'SMA(200)']]
 
+# TODO: fragment
+#@st.fragment
+
+# TODO: cache, session 다시 확인해서 적용
+
+# TODO: form 이용해서 시뮬레이션
+# https://docs.streamlit.io/develop/api-reference/execution-flow/st.form
 
 def main():
     st.set_page_config(layout="wide")
+    # TODO: page_title, page_icon
+    #    st.set_page_config(page_title=None, page_icon=None, initial_sidebar_state="auto", menu_items=None)
+    # TODO: https://docs.streamlit.io/develop/api-reference/configuration/config.toml
+
     
     sh = init_spreadsheet()
+    ok = False
+    # TODO: Hide when logged in.
+    # if "api_key" not in st.session_state:
     ok = auth(sh) # api_key, user
     if not ok:
         st.text("존재하지 않는 인증키입니다.")
@@ -81,9 +98,35 @@ def main():
         with st.spinner("잠시만 기다려주세요..."):
             board_tab, etf_tab, chart_tab, portfolio_tab = st.tabs(["ETF 현황판", "ETF 분석", "지표 & ETF 차트 비교", "ETF 포트폴리오"])
             with board_tab:
-                # TODO: SMA를 꺽은선 그래프로 보여주는건 어떨까? SMA200 - 120 - 60 - 20 - 10 - 5 - 현재 순으로
                 st.subheader("지수 현황판", divider="rainbow", anchor="market_board")
                 index_board_df = pd.DataFrame(sh.worksheet("index_board").get_all_records())
+
+                index_chart_df = pd.DataFrame(sh.worksheet("index_board").get_all_records())
+                for col in ['sma5', 'sma10', 'sma20', 'sma60', 'sma120', 'sma200']:
+                    index_chart_df[col] = (index_chart_df[col] / index_chart_df['close'] - 1) * 100
+                x = ['SMA200', 'SMA120', 'SMA60', 'SMA20', 'SMA10', 'SMA5', '종가']
+                p = figure(x_range=x, tools="pan,wheel_zoom,box_zoom,reset,hover,save")
+                colors = Category20[len(index_chart_df['name'])]
+
+                for idx, row in index_chart_df.iterrows():
+                    y = [
+                        row['sma200'],
+                        row['sma120'],
+                        row['sma60'],
+                        row['sma20'],
+                        row['sma10'],
+                        row['sma5'],
+                        0
+                    ]
+                    source = ColumnDataSource(data=dict(x=x, y=y, name=[row['name']] * len(x)))
+                    p.line('x', 'y', source=source, line_width=2, legend_label=row['name'], color=colors[idx])
+                    p.circle('x', 'y', source=source, size=8, color=colors[idx], legend_label=row['name'])
+                hover = p.select(dict(type=HoverTool))
+                hover.tooltips = [("지수", "@name"), ("종가 대비(%)", "@y")]
+                p.legend.location = "bottom_right"
+                p.legend.click_policy = "hide"
+                st.bokeh_chart(p, use_container_width=True)
+
                 index_board_df.rename(columns={
                     "date": "날짜",
                     "name": "지수명",
@@ -96,26 +139,84 @@ def main():
                     "sma120": "SMA(120)",
                     "sma200": "SMA(200)"
                 }, inplace=True)
-                index_board_df['종가'] = index_board_df['종가'].round(2)
                 index_board_df['RSI(14)'] = index_board_df['RSI(14)'].round(2)
                 index_board_df[['SMA(5)', 'SMA(10)', 'SMA(20)', 'SMA(60)', 'SMA(120)', 'SMA(200)']] = index_board_df[['SMA(5)', 'SMA(10)', 'SMA(20)', 'SMA(60)', 'SMA(120)', 'SMA(200)']].round(2)
 
-                styled_df = index_board_df.style.map(rsi_color, subset=['RSI(14)'])
-                styled_df = styled_df.apply(lambda row: apply_sma_colors(row), axis=1, subset=['종가', 'SMA(5)', 'SMA(10)', 'SMA(20)', 'SMA(60)', 'SMA(120)', 'SMA(200)'])
-                st.dataframe(styled_df, hide_index=True, use_container_width=True)
+                styled_index_df = index_board_df.style.map(rsi_color, subset=['RSI(14)'])
+                # styled_df = styled_df.apply(lambda row: apply_sma_colors(row), axis=1, subset=['종가', 'SMA(5)', 'SMA(10)', 'SMA(20)', 'SMA(60)', 'SMA(120)', 'SMA(200)'])
+                styled_index_df = index_board_df.style.format({
+                    '종가': "{:.2f}",
+                    'RSI(14)': "{:.2f}",
+                    'SMA(5)': "{:.2f}",
+                    'SMA(10)': "{:.2f}",
+                    'SMA(20)': "{:.2f}",
+                    'SMA(60)': "{:.2f}",
+                    'SMA(120)': "{:.2f}",
+                    'SMA(200)': "{:.2f}"
+                }).map(rsi_color, subset=['RSI(14)'])
+                st.dataframe(styled_index_df, hide_index=True, use_container_width=True)
+
 
                 st.subheader("ETF 현황판", divider="rainbow", anchor="etf_board")
                 etf_board_df = pd.DataFrame(sh.worksheet("etf_board").get_all_records())
+
+                etf_chart_df = pd.DataFrame(sh.worksheet("etf_board").get_all_records())
+                for col in ['sma5', 'sma10', 'sma20', 'sma60', 'sma120', 'sma200']:
+                    etf_chart_df[col] = (etf_chart_df[col] / etf_chart_df['close'] - 1) * 100
+                x = ['SMA200', 'SMA120', 'SMA60', 'SMA20', 'SMA10', 'SMA5', '종가']
+                p = figure(x_range=x, tools="pan,wheel_zoom,box_zoom,reset,hover,save")
+                colors = Category20[len(etf_chart_df['name'])]
+
+                for idx, row in etf_chart_df.iterrows():
+                    y = [
+                        row['sma200'],
+                        row['sma120'],
+                        row['sma60'],
+                        row['sma20'],
+                        row['sma10'],
+                        row['sma5'],
+                        0
+                    ]
+                    source = ColumnDataSource(data=dict(x=x, y=y, name=[row['name']] * len(x)))
+                    p.line('x', 'y', source=source, line_width=2, legend_label=row['name'], color=colors[idx])
+                    p.circle('x', 'y', source=source, size=8, color=colors[idx], legend_label=row['name'])
+                hover = p.select(dict(type=HoverTool))
+                hover.tooltips = [("종목", "@name"), ("종가 대비(%)", "@y")]
+                p.legend.location = "bottom_right"
+                p.legend.click_policy = "hide"
+                st.bokeh_chart(p, use_container_width=True)
+
                 etf_board_df.rename(columns={
                     "date": "날짜",
                     "name": "종목명",
                     "close": "종가",
+                    "rsi14": "RSI(14)",
+                    "sma5": "SMA(5)",
+                    "sma10": "SMA(10)",
+                    "sma20": "SMA(20)",
+                    "sma60": "SMA(60)",
+                    "sma120": "SMA(120)",
+                    "sma200": "SMA(200)",
                     "dividend": "배당금",
                     "dividend_per_close_percent": "배당률",
                     "recorddate": "배당기준일",
                     "paydate": "배당지급일"
                 }, inplace=True)
-                st.dataframe(etf_board_df, hide_index=True, use_container_width=True)
+                etf_board_df['RSI(14)'] = etf_board_df['RSI(14)'].round(2)
+                etf_board_df[['SMA(5)', 'SMA(10)', 'SMA(20)', 'SMA(60)', 'SMA(120)', 'SMA(200)']] = etf_board_df[['SMA(5)', 'SMA(10)', 'SMA(20)', 'SMA(60)', 'SMA(120)', 'SMA(200)']].round(2)
+                styled_etf_df = etf_board_df.style.format({
+                    '종가': "{:.2f}",
+                    'RSI(14)': "{:.2f}",
+                    'SMA(5)': "{:.2f}",
+                    'SMA(10)': "{:.2f}",
+                    'SMA(20)': "{:.2f}",
+                    'SMA(60)': "{:.2f}",
+                    'SMA(120)': "{:.2f}",
+                    'SMA(200)': "{:.2f}",
+                    '배당금': "{:.4f}",
+                    '배당률': "{:.3f}"
+                }).map(rsi_color, subset=['RSI(14)'])
+                st.dataframe(styled_etf_df, hide_index=True, use_container_width=True)
 
             with etf_tab:                
                 market_col, etf_col = st.columns([1,1])
@@ -182,11 +283,7 @@ def main():
                 st.text("TODO: 지표와 ETF를 선택하여, 차트를 통해 비교 분석할 수 있는 기능을 제공할 예정입니다.")
 
             with portfolio_tab:
-            # TODO: 나만의 포트폴리오 탭: 종목과 평균단가, 수량 입력해서 저장해놓으면. 날짜 종목 수량 평균단가 현재가 총손익 수익률 배당률 배당금 배당기준일 
-            #                                                                   매입금액 현재금액 비중  손익비중        배당비중   
-            #                                                               토탈   투자금         총손익 수익률 배당률 배당금
-                st.text("TODO: 나만의 포트폴리오를 저장하여 현재 총손익과 예상 배당금과 현재 배당률을 관리해줍니다.")
-
+                display_portfolio(st.session_state.user, sh)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(levelname)s | %(asctime)s | %(message)s')
