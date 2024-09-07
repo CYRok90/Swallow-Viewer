@@ -13,6 +13,14 @@ from modules.auth import auth
 from modules.display import display_report_header, display_etf_information, display_stock_recent_price, display_stock_recent_dividend, display_chart_table
 from modules.simulate import display_simulate_header, display_simulate
 
+from PIL import Image
+import base64
+ICON_PATH = "swallow_icon.png"
+favicon = Image.open(ICON_PATH)
+def get_base64_of_image():
+    with open(ICON_PATH, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode()
+SWALLOW_IMAGE = get_base64_of_image()
 VERSION = "v1.0.0"
 REPORT_VERSION = "v1.0.0"
 SIMULATE_VERSION = "v1.0.0"
@@ -66,9 +74,7 @@ def rsi_color(val):
 # https://docs.streamlit.io/develop/api-reference/execution-flow/st.form
 
 def main():
-    st.set_page_config(layout="wide")
-    # TODO: page_title, page_icon
-    #    st.set_page_config(page_title=None, page_icon=None, initial_sidebar_state="auto", menu_items=None)
+    st.set_page_config(layout="wide", page_title="SwallFin - Swallow Finance.", page_icon=favicon)
     # TODO: https://docs.streamlit.io/develop/api-reference/configuration/config.toml
 
     
@@ -87,11 +93,12 @@ def main():
     st.markdown(
             """
             <div style='display: flex; align-items: baseline; height: 100%;'>
-                <h1>초이하우스 - 락구펀드</h1>
+                <img src="data:image/png;base64,{image_base64}" style="width: 84px; height: 84px; margin-right: 10px;">
+                <h1>SwallFin(스왈핀) - Swallow Finance</h1>
                 <h5>{version}</h5>
                 <h4>{date}</h4>
             </div>
-            """.format(date=today.strftime("%Y-%m-%d %A"), version= VERSION),
+            """.format(image_base64=SWALLOW_IMAGE, date=today.strftime("%Y-%m-%d %A"), version= VERSION),
             unsafe_allow_html=True
     )
     if ok:
