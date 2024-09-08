@@ -3,12 +3,71 @@ import pandas as pd
 
 @st.experimental_fragment
 def display_portfolio(user, sh):
-    all_portfolio_df = pd.DataFrame(sh.worksheet("portfolio").get_all_records())
-    # print(all_portfolio_df)
-    user_portfolio_df = all_portfolio_df[all_portfolio_df["user"] == user][["종목명", "매입 금액", "보유 수량"]].reset_index(drop=True)
+    if "all_portfolio_df" not in st.session_state:
+        st.session_state["all_portfolio_df"] = pd.DataFrame(sh.worksheet("portfolio").get_all_records())
+    if "user_portfolio_df" not in st.session_state:
+        st.session_state["user_portfolio_df"] = st.session_state.all_portfolio_df[st.session_state.all_portfolio_df["user"] == st.session_state.user][["종목명", "매입 금액", "보유 수량"]].reset_index(drop=True)
+    if "ticker_set" not in st.session_state:
+        st.session_state["ticker_set"] = set(row["name"] for row in sh.worksheet("stock_etf_list").get_all_records())
+    if "profit_df" not in st.session_state:
+        st.session_state["profit_df"] = pd.DataFrame()
+    if "dividend_df" not in st.session_state:
+        st.session_state["dividend_df"] = pd.DataFrame()
 
-    user_portfolio_df = st.data_editor(user_portfolio_df, num_rows='dynamic', hide_index=True, use_container_width=True)
-    # print(user_portfolio_df)
+    def update_ticker_selectbox(placeholder):
+        with placeholder.container():
+            return st.selectbox(
+                "현재 포트폴리오에 없는 종목",
+                st.session_state.ticker_set
+            )
+    def update_portfolio_table(placeholder):
+        with placeholder.container():
+            return st.data_editor(
+                st.session_state.user_portfolio_df,
+                num_rows = "dynamic",
+                hide_index = True,
+                use_container_width = True
+            )
+    def update_profit_table(placeholder):
+        with placeholder.container():
+            return st.dataframe(st.session_state.profit_df, use_container_width=True, hide_index=True)
+    def update_dividend_table(placeholder):
+        with placeholder.container():
+            return st.dataframe(st.session_state.dividend_df, use_container_width=True, hide_index=True)
+
+
+    with st.form("portfolio_form", border=True):
+        st.session_state["ticker_set"] -= set(st.session_state.user_portfolio_df["종목명"])
+        
+        col1, col2 = st.columns([1,2])
+        with col1:
+            selectbox_placeholder = st.empty()
+            selected_ticker = update_ticker_selectbox(selectbox_placeholder)
+        with col2:
+            add_button = st.form_submit_button("종목 추가", type="primary")
+            if selected_ticker != None and add_button:
+                new_row =  pd.DataFrame({
+                    "종목명": [selected_ticker],
+                    "매입 금액": [0.0],
+                    "보유 수량": [0]
+                })
+                st.session_state["user_portfolio_df"] = pd.concat([st.session_state.user_portfolio_df, new_row], ignore_index=True)
+                st.session_state["ticker_set"] = st.session_state.ticker_set - set([selected_ticker])
+                # update selectbox
+                
+
+            save_button = st.form_submit_button("포트폴리오 저장", type="primary")
+            if save_button:
+                st.session_state["all_portfolio_df"] = st.session_state.all_portfolio_df[st.session_state.all_portfolio_df["user"] != user]
+                updated_portfolio_df = st.session_state.user_portfolio_df
+                updated_portfolio_df["user"] = user  # 사용자 정보 추가
+                st.session_state["all_portfolio_df"] = pd.concat([st.session_state.all_portfolio_df, updated_portfolio_df], ignore_index=True)
+                sh.worksheet("portfolio").clear()  # 기존 데이터 삭제
+                sh.worksheet("portfolio").update([st.session_state.all_portfolio_df.columns.values.tolist()] + st.session_state.all_portfolio_df.values.tolist())
+                st.session_state["all_portfolio_df"] = pd.DataFrame(sh.worksheet("portfolio").get_all_records())
+                st.session_state["user_portfolio_df"] = st.session_state.all_portfolio_df[st.session_state.all_portfolio_df["user"] == st.session_state.user][["종목명", "매입 금액", "보유 수량"]].reset_index(drop=True)
+        user_portfolio_table_placeholder = st.empty()
+        user_portfolio_table = update_portfolio_table(user_portfolio_table_placeholder)
 
     index_board_df = pd.DataFrame(sh.worksheet("index_board").get_all_records())
     usd_krw = index_board_df.loc[index_board_df["name"] == "USD_KRW", "close"].values[0]
@@ -21,7 +80,7 @@ def display_portfolio(user, sh):
     all_purchased_total_price = 0.0
 
     # 전체 손익과 매입 금액을 계산하는 첫 번째 루프
-    for _, row in user_portfolio_df.iterrows():
+    for _, row in st.session_state.user_portfolio_df.iterrows():
         name = row["종목명"]
         multiple = 1 if name.startswith("TIGER") or name.startswith("KODEX") else usd_krw
         purchased_total_price = row["매입 금액"] * multiple
@@ -44,12 +103,12 @@ def display_portfolio(user, sh):
         "종목명", "수익률(%)", "총 손익(₩)", "손익 비중(%)", "현재 금액(₩)", 
         "매입 금액(₩)", "보유 비중(%)", "현재가", "평균 단가", "보유 수량"
     ]
-    profit_df = pd.DataFrame(columns=profit_columns)
+    st.session_state["profit_df"] = pd.DataFrame(columns=profit_columns)
 
     # 각 종목별 데이터를 계산하여 새로운 DataFrame에 추가하는 두 번째 루프
     all_current_total_price = 0.0  # 현재 금액의 총합을 다시 계산하기 위한 초기값
 
-    for _, row in user_portfolio_df.iterrows():
+    for _, row in st.session_state.user_portfolio_df.iterrows():
         name = row["종목명"]
         multiple = 1 if name.startswith("TIGER") or name.startswith("KODEX") else usd_krw
 
@@ -81,7 +140,7 @@ def display_portfolio(user, sh):
             "평균 단가": [round(average_price, 3)],
             "보유 수량": [num_of_shares]
         })
-        profit_df = pd.concat([profit_df, new_row], ignore_index=True)
+        st.session_state["profit_df"] = pd.concat([st.session_state.profit_df, new_row], ignore_index=True)
         all_current_total_price += current_total_price  # 현재 금액 총합 계산
     
     # 최종 합계 행 추가
@@ -97,12 +156,12 @@ def display_portfolio(user, sh):
         "평균 단가": ["-"],
         "보유 수량": ["-"]
     })
-    profit_df = pd.concat([profit_df, total_row], ignore_index=True)
+    st.session_state["profit_df"] = pd.concat([st.session_state.profit_df, total_row], ignore_index=True)
 
     all_dividend = 0.0
     all_purchased_total_price = 0.0
 
-    for _, row in user_portfolio_df.iterrows():
+    for _, row in st.session_state.user_portfolio_df.iterrows():
         name = row["종목명"]
         multiple = 1 if name.startswith("TIGER") or name.startswith("KODEX") else usd_krw
         purchased_total_price = row["매입 금액"] * multiple
@@ -130,9 +189,9 @@ def display_portfolio(user, sh):
         "종목명", "배당률(%)", "총 배당(₩)", "배당 비중(%)",
         "매입 금액(₩)", "보유 비중(%)", "주당 배당금", "현재 배당률(%)", "배당기준일", "배당지급일", "배당 주기"
     ]
-    dividend_df = pd.DataFrame(columns=dividend_columns)
+    st.session_state["dividend_df"] = pd.DataFrame(columns=dividend_columns)
 
-    for _, row in user_portfolio_df.iterrows():
+    for _, row in st.session_state.user_portfolio_df.iterrows():
         name = row["종목명"]
         multiple = 1 if name.startswith("TIGER") or name.startswith("KODEX") else usd_krw
 
@@ -159,7 +218,7 @@ def display_portfolio(user, sh):
             "배당지급일": [etf_board_df.loc[etf_board_df["name"] == name, "paydate"].values[0]],
             "배당 주기": [etf_info_df.loc[etf_info_df["name"] == name, "dividend_interval"].values[0]]
         })
-        dividend_df = pd.concat([dividend_df, new_row], ignore_index=True)
+        st.session_state["dividend_df"] = pd.concat([st.session_state.dividend_df, new_row], ignore_index=True)
     total_row = pd.DataFrame({
         "종목명": ["합산"],
         "배당률(%)": [round((all_dividend / all_purchased_total_price) * 100, 3) if all_purchased_total_price != 0 else 0],
@@ -173,7 +232,7 @@ def display_portfolio(user, sh):
         "배당지급일": ["-"],
         "배당 주기": ["-"]
     })
-    dividend_df = pd.concat([dividend_df, total_row], ignore_index=True)
+    st.session_state["dividend_df"] = pd.concat([st.session_state.dividend_df, total_row], ignore_index=True)
 
     usdkrw_col, current_total_col, purchased_total_col, profit_total_col, profit_percent_col, dividend_total_col, dividend_percent_col = st.columns([1,1,1,1,1,1,1])
     with usdkrw_col:
@@ -191,7 +250,8 @@ def display_portfolio(user, sh):
     with dividend_percent_col:
         st.metric(label="배당률", value=f"{round((all_dividend / all_purchased_total_price) * 100, 3) if all_purchased_total_price != 0 else 0:,.2f}%")
 
-    st.dataframe(profit_df, use_container_width=True, hide_index=True)
-    st.dataframe(dividend_df, use_container_width=True, hide_index=True)
-
+    profit_table_placeholder = st.empty()
+    profit_table = update_profit_table(profit_table_placeholder)
+    dividend_table_placeholder = st.empty()
+    dividend_table = update_dividend_table(dividend_table_placeholder)
     return
