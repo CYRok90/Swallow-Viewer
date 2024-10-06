@@ -1,7 +1,9 @@
+import streamlit as st
 import gspread
 import pandas as pd
 from millify import millify
-import streamlit as st
+
+TTL = 600
 
 def init_spreadsheet():
     # gc = gspread.service_account(filename="google_oauth.json")
@@ -21,24 +23,35 @@ def init_spreadsheet():
     gc = gspread.service_account_from_dict(credentials)
     return gc.open("swallow_dividends")
 
-def get_etf_with_market_select(sh, market_select):
-    ws = sh.worksheet("stock_etf_list")
-    stock_etf_df = pd.DataFrame(ws.get_all_records())
-    return stock_etf_df[(stock_etf_df["market"] == market_select) & (stock_etf_df["type"] == "etf")]
+@st.cache_data(ttl=TTL)
+def get_auth_table(_sh):
+    return _sh.worksheet("auth").get_all_records()
 
-def get_etf_info(sh, name):
-    ws = sh.worksheet("etf_info_list")
-    etf_info_df = pd.DataFrame(ws.get_all_records())
-    return etf_info_df[(etf_info_df["name"] == name)].iloc[0].tolist()
+@st.cache_data(ttl=TTL)
+def get_index_board_table(_sh):
+    st.session_state["logger"].info("USER: %s called INDEX_BOARD API.", st.session_state.user)
+    return _sh.worksheet("index_board").get_all_records()
 
-def get_stock_raw_data(sh, name):
-    ws = sh.worksheet("raw")
-    stock_raw_df = pd.DataFrame(ws.get_all_records())
-    return stock_raw_df[(stock_raw_df["name"] == name)]
+@st.cache_data(ttl=TTL)
+def get_etf_board_table(_sh):
+    st.session_state["logger"].info("USER: %s called ETF_BOARD API.", st.session_state.user)
+    return _sh.worksheet("etf_board").get_all_records()
 
-def get_dividend_data(stock_raw_df):
-    dividend_df = stock_raw_df[["recorddate", "paydate", "dividend"]]
-    return dividend_df.drop_duplicates(subset=["recorddate", "paydate"])
+@st.cache_data(ttl=TTL)
+def get_stock_etf_list_table(_sh):
+    st.session_state["logger"].info("USER: %s called STOCK_ETF_LIST API.", st.session_state.user)
+    return _sh.worksheet("stock_etf_list").get_all_records()
+
+@st.cache_data(ttl=TTL)
+def get_etf_info_table(_sh):
+    st.session_state["logger"].info("USER: %s called ETF_INFO_LIST API.", st.session_state.user)
+    return _sh.worksheet("etf_info_list").get_all_records()
+
+@st.cache_data(ttl=TTL)
+def get_raw_table(_sh):
+    st.session_state["logger"].info("USER: %s called RAW API.", st.session_state.user)
+    return _sh.worksheet("raw").get_all_records()
+
 
 def get_close_table(stock_raw_df):
     current_close = stock_raw_df.iloc[0]["close"]

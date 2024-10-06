@@ -6,13 +6,36 @@ from millify import millify
 from streamlit_lightweight_charts import renderLightweightCharts
 import streamlit_lightweight_charts.dataSamples as data
 
-from modules.spreadsheets import get_etf_info, get_close_table, get_volume_table, get_dividend_rate_table, get_dividend_table
+from modules.spreadsheets import get_close_table, get_volume_table, get_dividend_rate_table, get_dividend_table
+
+from PIL import Image
+import base64
+
+def display_title(VERSION):
+    ICON_PATH = "swallow_icon.png"
+    favicon = Image.open(ICON_PATH)
+    st.set_page_config(layout="wide", page_title="SwallFin - Swallow Finance.", page_icon=favicon)
+
+    with open(ICON_PATH, "rb") as image_file:
+        SWALLOW_IMAGE = base64.b64encode(image_file.read()).decode()
+
+    locale.setlocale(locale.LC_TIME, "ko_KR.UTF-8")
+    today = datetime.now()
+    st.markdown(
+            """
+            <div style='display: flex; align-items: baseline; height: 100%;'>
+                <img src="data:image/png;base64,{image_base64}" style="width: 84px; height: 84px; margin-right: 10px;">
+                <h1>SwallFin(스왈핀) - Swallow Finance</h1>
+                <h5>{version}</h5>
+                <h4>{date}</h4>
+            </div>
+            """.format(image_base64=SWALLOW_IMAGE, date=today.strftime("%Y-%m-%d %A"), version= VERSION),
+            unsafe_allow_html=True
+    )
+
 
 CURRENYCY_SYMBOL_US = "$"
 CURRENYCY_SYMBOL_KR = "₩"
-
-def display_report_header(VERSION):
-    st.header("ETF 투자 분석 {version}".format(version=VERSION), divider="rainbow", anchor="report")
 
 def display_etf_information(etf_info):
     etf_title, info_col = st.columns([2,1])
