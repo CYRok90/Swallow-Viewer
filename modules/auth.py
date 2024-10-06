@@ -1,17 +1,18 @@
 import streamlit as st
 import pandas as pd
 
-def auth(sh):
-    auth_df = pd.DataFrame(sh.worksheet("auth").get_all_records())
+from modules.spreadsheets import get_auth_table
 
-    if "api_key" not in st.session_state:
-        st.session_state.api_key = ""
-    st.session_state.api_key = st.text_input("인증키", type="password")
-    ok = auth_df["auth_key"].isin([st.session_state.api_key]).any()
-    if "user" not in st.session_state:
-        st.session_state.user = ""    
-    if ok:
-        st.session_state.user = auth_df[auth_df["auth_key"] == st.session_state.api_key]["name"].values[0]
-        return True
-    else:
-        return False
+def display_auth(sh):
+    auth_df = pd.DataFrame(get_auth_table(sh))
+    api_key = st.text_input("인증키", type="password")
+    if api_key:
+        ok = auth_df["auth_key"].isin([api_key]).any()
+        if ok:
+            st.session_state["user"] = auth_df[auth_df["auth_key"] == api_key]["name"].values[0]
+            st.session_state["api_key"] = api_key
+            st.session_state["logged_in"] = True
+            st.session_state["logger"].info("USER: %s has logged in.", st.session_state.user)
+            st.rerun()
+        else:
+            st.error("존재하지 않는 인증키입니다.")

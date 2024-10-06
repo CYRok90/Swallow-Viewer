@@ -5,8 +5,8 @@ import pandas as pd
 
 SIMULATE_API_URL = st.secrets["simulate_api_url"]
 
-def display_simulate_header(VERSION):
-    st.header("ETF 투자 시뮬레이션 {version}".format(version=VERSION), divider="rainbow", anchor="trade")
+def display_simulate_header():
+    st.header("ETF 투자 시뮬레이션", divider="rainbow", anchor="trade")
 
 def display_simulate(etf_name, etf_raw_df, dividend_interval):
     start_col, end_col = st.columns([1,1])
